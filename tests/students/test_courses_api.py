@@ -85,9 +85,9 @@ def test_courses_filter_name(api_client):
 @pytest.mark.parametrize(
     ['name', 'status_code'],
     (
-        ('programming', HTTP_201_CREATED),
-        ('java', HTTP_201_CREATED),
-        ('python', HTTP_201_CREATED),
+            ('programming', HTTP_201_CREATED),
+            ('java', HTTP_201_CREATED),
+            ('python', HTTP_201_CREATED),
     )
 )
 @pytest.mark.django_db
@@ -100,10 +100,12 @@ def test_courses_create(api_client, name, status_code):
 
     # act
     response = api_client.post(url, course_payload)
+    created_course = Course.objects.all().filter(name=name)
 
     # assert
     assert response.json()['name'] == name
     assert response.status_code == status_code
+    assert created_course
 
 
 @pytest.mark.django_db
@@ -122,6 +124,7 @@ def test_courses_update(api_client, course_factory):
     # act
     response = api_client.post(url_create, course_payload)
     response_update = api_client.patch(url_update, course_payload_update)
+    updated_course = Course.objects.all().filter(name=course_payload_update['name'])
 
     # assert
     assert response.status_code == HTTP_201_CREATED
@@ -129,55 +132,36 @@ def test_courses_update(api_client, course_factory):
 
     assert response_update.status_code == HTTP_200_OK
     assert response_update.json()['name'] == course_payload_update['name']
+    assert updated_course
 
 
 @pytest.mark.django_db
 def test_courses_delete(api_client, course_factory):
     # arrange
     course = course_factory()
-    url_create = reverse('courses-list')
-    course_payload = {
-        'name': course.name
-    }
     url_delete = reverse('courses-detail', args=[course.id])
 
     # act
-    response = api_client.post(url_create, course_payload)
     response_delete = api_client.delete(url_delete)
+    deleted_course = Course.objects.all().filter(id=course.id)
 
     # assert
-    assert response.status_code == HTTP_201_CREATED
-    assert response.json()['name'] == course_payload['name']
-
     assert response_delete.status_code == HTTP_204_NO_CONTENT
+    assert not deleted_course
 
 
-# Дополнительно задание
-@pytest.mark.django_db
-def test_max_students(settings, api_client, course_factory, student_factory):
-    student1 = student_factory()
-    student2 = student_factory()
-    course = course_factory(students=[student1, student2])
-    course.save()
-    url = reverse('courses-list')
-
-    response = api_client.get(url)
-
-    assert response.status_code == HTTP_200_OK
-    students_amount = response.json()[0]['students']
-    assert len(students_amount) <= settings.MAX_STUDENTS_PER_COURSE
-
-
+# Дополнительное задание
 @pytest.mark.parametrize(
     ['students_amount', 'message'],
     (
-        (14, 'Допустимое кол-во студентов'),
-        (25, 'Недопустимое кол-во студентов'),
+            (14, 'Допустимое кол-во студентов'),
+            (25, 'Недопустимое кол-во студентов'),
+            (20, 'Допустимое кол-во студентов'),
+            (21, 'Недопустимое кол-во студентов'),
     )
 )
 @pytest.mark.django_db
 def test_max_students(settings, students_amount, message):
-
     if students_amount <= settings.MAX_STUDENTS_PER_COURSE:
         answer = 'Допустимое кол-во студентов'
     else:
